@@ -9,10 +9,10 @@ export class DatasetService<T extends Dataset = Dataset> {
 
   constructor(
     @inject('queryDataset') queryDataset: () => Promise<T>,
-    @optional() @inject('getDeps') private readonly getDeps?: () => unknown,
     @optional()
     @inject('fallback')
-    private readonly fallback?: (() => Promise<T> | T) | T
+    private readonly fallback?: (() => Promise<T> | T) | T,
+    @optional() @inject('getDeps') private readonly getDeps?: () => unknown
   ) {
     this.queryDataset = () => {
       this.queryCount += 1

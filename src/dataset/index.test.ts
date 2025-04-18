@@ -28,7 +28,7 @@ describe('DatasetService', () => {
       mockQueryDataset.mockResolvedValue([])
       const deps = ref([])
 
-      new DatasetService(mockQueryDataset, () => deps.value)
+      new DatasetService(mockQueryDataset, undefined, () => deps.value)
 
       expect(mockQueryDataset).toHaveBeenCalledTimes(1)
       deps.value = []
@@ -43,11 +43,7 @@ describe('DatasetService', () => {
       mockQueryDataset.mockRejectedValue(new Error('Failed'))
       mockFallback.mockResolvedValue(fallbackData)
 
-      const service = new DatasetService(
-        mockQueryDataset,
-        undefined,
-        mockFallback
-      )
+      const service = new DatasetService(mockQueryDataset, mockFallback)
       await service.loaded
 
       expect(mockFallback).toHaveBeenCalled()
@@ -58,11 +54,7 @@ describe('DatasetService', () => {
       const fallbackData = [[7, 8]]
       mockQueryDataset.mockRejectedValue(new Error('Failed'))
 
-      const service = new DatasetService(
-        mockQueryDataset,
-        undefined,
-        fallbackData
-      )
+      const service = new DatasetService(mockQueryDataset, fallbackData)
       await service.loaded
 
       expect(service.data).toEqual(fallbackData)
@@ -73,11 +65,7 @@ describe('DatasetService', () => {
         .mockRejectedValueOnce(new Error('Failed'))
         .mockResolvedValueOnce([[9, 10]])
 
-      const service = new DatasetService(
-        mockQueryDataset,
-        undefined,
-        mockFallback
-      )
+      const service = new DatasetService(mockQueryDataset, mockFallback)
       service['queryDataset']()
       await service.loaded
 
@@ -90,10 +78,7 @@ describe('DatasetService', () => {
     it('应返回正确的loading状态', async () => {
       let resolveQuery: (value: unknown) => void
       mockQueryDataset.mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            resolveQuery = resolve
-          })
+        () => new Promise((resolve) => (resolveQuery = resolve))
       )
 
       const service = new DatasetService(mockQueryDataset)
