@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { DatasetService } from './index'
+import { DatasetService } from './baseDataset'
 import { ref } from 'vue'
 
 describe('DatasetService', () => {
