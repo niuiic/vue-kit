@@ -1,14 +1,20 @@
 import { ref, watch } from 'vue'
 import { inject, optional } from 'inversify'
+import { isNil } from '../isNil'
 
 export type Dataset = any[][]
 
-export class DatasetService<T extends Dataset = Dataset> {
+export class DatasetService<
+  T extends Dataset = Dataset,
+  QueryDataset extends () => Promise<T> = () => Promise<T>,
+  Fallback extends (() => Promise<T> | T) | T = (() => Promise<T> | T) | T,
+  GetDeps extends () => unknown = () => unknown
+> {
   // %% constructor %%
   constructor(
-    @inject('queryDataset') queryDataset: () => Promise<T>,
-    @optional() @inject('fallback') fallback?: (() => Promise<T> | T) | T,
-    @optional() @inject('getDeps') getDeps?: () => unknown
+    @inject('queryDataset') queryDataset: QueryDataset,
+    @optional() @inject('fallback') fallback?: Fallback,
+    @optional() @inject('getDeps') getDeps?: GetDeps
   ) {
     this.setupQueryFn(queryDataset, fallback, getDeps)
   }
@@ -20,11 +26,11 @@ export class DatasetService<T extends Dataset = Dataset> {
 
   protected queryCount = 0
   protected _data = ref<T>()
-  protected queryDataset!: () => Promise<unknown>
-  protected setupQueryFn(
-    queryDataset: () => Promise<T>,
-    fallback?: T | (() => Promise<T> | T),
-    getDeps?: () => unknown
+  private queryDataset!: () => Promise<unknown>
+  private setupQueryFn(
+    queryDataset: QueryDataset,
+    fallback?: Fallback,
+    getDeps?: GetDeps
   ) {
     this.queryDataset = () => {
       this.queryCount += 1
@@ -33,19 +39,17 @@ export class DatasetService<T extends Dataset = Dataset> {
       this._loading.value = true
       this._loaded = queryDataset()
         .then(
-          (data) => curCount === this.queryCount && (this._data.value = data)
+          (data) =>
+            curCount === this.queryCount &&
+            this.canSetData() &&
+            this.setData(data)
         )
-        .catch(async () => {
-          if (curCount !== this.queryCount || !fallback) {
-            return
-          }
-
-          if (typeof fallback === 'function') {
-            this._data.value = await fallback()
-          } else {
-            this._data.value = fallback
-          }
-        })
+        .catch(
+          (): unknown =>
+            curCount === this.queryCount &&
+            this.canFallback(fallback) &&
+            this.fallback(fallback)
+        )
         .finally(
           () => curCount === this.queryCount && (this._loading.value = false)
         )
@@ -56,7 +60,23 @@ export class DatasetService<T extends Dataset = Dataset> {
 
     this.setupWatcher(getDeps)
   }
-  protected setupWatcher(getDeps?: () => unknown) {
+  protected canSetData() {
+    return true
+  }
+  protected setData(data: T) {
+    this._data.value = data
+  }
+  protected canFallback(fallback?: Fallback): fallback is Fallback {
+    return !isNil(fallback)
+  }
+  protected async fallback(fallback: Fallback) {
+    if (typeof fallback === 'function') {
+      this._data.value = await fallback()
+    } else {
+      this._data.value = fallback as T
+    }
+  }
+  private setupWatcher(getDeps?: GetDeps) {
     if (getDeps) {
       watch(
         () => getDeps(),
@@ -67,8 +87,6 @@ export class DatasetService<T extends Dataset = Dataset> {
   }
 
   // %% loading %%
-  protected _loaded: Promise<unknown> | undefined
-  protected _loading = ref(false)
   get loading() {
     return this._loading.value
   }
@@ -79,4 +97,7 @@ export class DatasetService<T extends Dataset = Dataset> {
 
     return this._loaded
   }
+
+  private _loaded: Promise<unknown> | undefined
+  private _loading = ref(false)
 }

@@ -93,8 +93,8 @@ describe('DatasetService', () => {
       mockQueryDataset.mockResolvedValue(data)
 
       const service = new DatasetService(mockQueryDataset)
-      const result = await service.loaded
-      expect(result).toEqual(data)
+      await service.loaded
+      expect(service.data).toEqual(data)
     })
   })
 })
