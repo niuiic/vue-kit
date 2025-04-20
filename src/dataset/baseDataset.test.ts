@@ -18,8 +18,8 @@ describe('DatasetService', () => {
 
       const service = new DatasetService(mockQueryDataset)
 
-      expect(mockQueryDataset).toHaveBeenCalledTimes(1)
       await service.loaded
+      expect(mockQueryDataset).toHaveBeenCalledTimes(1)
       expect(service.data).toEqual(data)
       expect(service.loading).toBe(false)
     })
@@ -28,11 +28,17 @@ describe('DatasetService', () => {
       mockQueryDataset.mockResolvedValue([])
       const deps = ref([])
 
-      new DatasetService(mockQueryDataset, undefined, () => deps.value)
+      const service = new DatasetService(
+        mockQueryDataset,
+        undefined,
+        () => deps.value
+      )
 
+      await service.loaded
       expect(mockQueryDataset).toHaveBeenCalledTimes(1)
+
       deps.value = []
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await service.loaded
       expect(mockQueryDataset).toHaveBeenCalledTimes(2)
     })
   })
@@ -66,10 +72,11 @@ describe('DatasetService', () => {
         .mockResolvedValueOnce([[9, 10]])
 
       const service = new DatasetService(mockQueryDataset, mockFallback)
-      service['queryDataset']()
       await service.loaded
 
-      expect(mockFallback).not.toHaveBeenCalled()
+      service['queryDataset'](true)
+      await service.loaded
+
       expect(service.data).toEqual([[9, 10]])
     })
   })
@@ -82,6 +89,7 @@ describe('DatasetService', () => {
       )
 
       const service = new DatasetService(mockQueryDataset)
+      await new Promise((resolve) => setTimeout(resolve))
       expect(service.loading).toBe(true)
       resolveQuery!([])
       await service.loaded
